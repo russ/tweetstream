@@ -5,18 +5,15 @@ describe 'TweetStream MultiJson Support' do
     TweetStream.reset
   end
 
-  it 'should default to the JSON Gem' do
-    TweetStream::Client.new.json_parser.engine.to_s.should == 'MultiJson::Engines::JsonGem'
-  end
-
   [:json_gem, :yajl, :active_support, :json_pure].each do |engine|
     describe "#{engine} parsing" do
       before do
         TweetStream.configure do |config|
           config.username = 'test'
           config.password = 'fake'
+          config.parser   = engine
         end
-        @client = TweetStream::Client.new(:parser => engine)
+        @client = TweetStream::Client.new
         @class_name = "MultiJson::Engines::#{engine.to_s.split('_').map{|s| s.capitalize}.join('')}"
       end
 
