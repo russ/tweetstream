@@ -1,17 +1,15 @@
 require File.dirname(__FILE__) + '/../spec_helper'
 
 describe TweetStream::Client do
-  it 'should set the username and password from the initializers' do
-    @client = TweetStream::Client.new('abc','def')
-    @client.username.should == 'abc'
-    @client.password.should == 'def'
+  before(:each) do
+    TweetStream.configure do |config|
+      config.username = 'abc'
+      config.password = 'def'
+    end
+    @client = TweetStream::Client.new
   end
 
   describe '#build_uri' do
-    before do
-      @client = TweetStream::Client.new('abc','def')
-    end
-
     it 'should return a URI' do
       @client.send(:build_uri, '').is_a?(URI).should be_true
     end
@@ -26,10 +24,6 @@ describe TweetStream::Client do
   end
 
   describe '#build_post_body' do
-    before do
-      @client = TweetStream::Client.new('abc','def')
-    end
-
     it 'should return a blank string if passed a nil value' do
       @client.send(:build_post_body, nil).should == ''
     end
@@ -63,7 +57,6 @@ describe TweetStream::Client do
       )
       EM.stub!(:run).and_yield
       Twitter::JSONStream.stub!(:connect).and_return(@stream)
-      @client = TweetStream::Client.new('abc','def')
     end
 
     it 'should try to connect via a JSON stream' do
@@ -81,7 +74,7 @@ describe TweetStream::Client do
 
     describe '#each_item' do
       it 'should call the appropriate parser' do
-        @client = TweetStream::Client.new('abc','def',:active_support)
+        @client = TweetStream::Client.new(:parser => :active_support)
         MultiJson.should_receive(:decode).and_return({})
         @stream.should_receive(:each_item).and_yield(sample_tweets[0].to_json)
         @client.track('abc','def')
@@ -156,10 +149,6 @@ describe TweetStream::Client do
   end
 
   describe ' API methods' do
-    before do
-      @client = TweetStream::Client.new('abc','def')
-    end
-
     %w(firehose retweet sample).each do |method|
       it "##{method} should make a call to start with \"statuses/#{method}\"" do
         @client.should_receive(:start).once.with('statuses/' + method, {})
@@ -198,16 +187,12 @@ describe TweetStream::Client do
     end
     it '#filter should make a call to "statuses/filter" with the query params provided longitude/latitude pairs, separated by commas ' do
       @client.should_receive(:start).once.with('statuses/filter', :locations => '-122.75,36.8,-121.75,37.8,-74,40,-73,41', :method => :post)
-      @client.filter(:locations => -122.75,36.8,-121.75,37.8,-74,40,-73,41)
+      @client.filter(:locations => '-122.75,36.8,-121.75,37.8,-74,40,-73,41')
     end
   end
 
   %w(on_delete on_limit).each do |proc_setter|
     describe "##{proc_setter}" do
-      before do
-        @client = TweetStream::Client.new('abc','def')
-      end
-
       it 'should set when a block is given' do
         proc = Proc.new{|a,b| puts a }
         @client.send(proc_setter, &proc)
@@ -217,10 +202,6 @@ describe TweetStream::Client do
   end
 
   describe '#track' do
-    before do
-      @client = TweetStream::Client.new('abc','def')
-    end
-
     it 'should call #start with "statuses/filter" and the provided queries' do
       @client.should_receive(:start).once.with('statuses/filter', :track => 'rock', :method => :post)
       @client.track('rock')
@@ -230,12 +211,12 @@ describe TweetStream::Client do
   describe 'instance .stop' do
     it 'should call EventMachine::stop_event_loop' do
       EventMachine.should_receive :stop_event_loop
-      TweetStream::Client.new('test','fake').stop.should be_nil
+      TweetStream::Client.new.stop.should be_nil
     end
 
     it 'should return the last status yielded' do
       EventMachine.should_receive :stop_event_loop
-      client = TweetStream::Client.new('test','fake')
+      client = TweetStream::Client.new
       client.send(:instance_variable_set, :@last_status, {})
       client.stop.should == {}
     end
